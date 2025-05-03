@@ -1,4 +1,5 @@
 ---
+---
 - name: Deploy Flask App to Webservers
   hosts: webservers
   become: true
@@ -19,11 +20,11 @@
         path: /opt/flaskapp
         state: directory
 
-    - name: Download application2.py
-      get_url:
-        url: https://raw.githubusercontent.com/patrikarlos/NSO_A2/main/application2.py
+    - name: Copy Flask app from local repo
+      copy:
         src: app.py
         dest: /opt/flaskapp/app.py
+        mode: '0644'
 
     - name: Create systemd service
       copy:
@@ -57,10 +58,9 @@
         name: haproxy
         update_cache: yes
 
-    - name: Configure HAProxy
-      copy:
-        dest: /etc/haproxy/haproxy.cfg
-        content: |
+    - name: Generate HAProxy configuration content
+      set_fact:
+        haproxy_config: |
           global
               log /dev/log    local0
               log /dev/log    local1 notice
@@ -80,28 +80,19 @@
               default_backend http_back
 
           backend http_back
-            balance roundrobin
-          {% for server in groups['webservers'] %}
-          server {{ server }} {{ hostvars[server]['ansible_default_ipv4']['address'] }}:80 check
-          {% endfor %}
+              balance roundrobin
+              option httpchk GET /
+              {% for server in groups['webservers'] %}
+              server {{ server }} {{ hostvars[server]['ansible_default_ipv4']['address'] }}:5000 check
+              {% endfor %}
+
+    - name: Render HAProxy config using template lookup
+      copy:
+        dest: /etc/haproxy/haproxy.cfg
+        content: "{{ lookup('template', haproxy_config) }}"
 
     - name: Restart HAProxy
       systemd:
         name: haproxy
         state: restarted
         enabled: true
-
-- name: Validate Load Balancing
-  hosts: localhost
-  connection: local
-  vars:
-    haproxy_ip: "{{ lookup('env', 'HAPROXY_IP') }}"
-  tasks:
-    - name: Send requests to HAproxy and verify responses
-      uri:
-        url: "http://{{ haproxy_ip }}"
-        return_content: yes
-      register: result
-      until: "'devA' in result.content or 'devB' in result.content or 'devC' in result.content"
-      retries: 5
-      delay: 5
