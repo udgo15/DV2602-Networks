@@ -1,5 +1,4 @@
----
-- name: Deploy Flask App to Webservers
+- name: Deploy Flask App to Web Servers
   hosts: webservers
   become: true
   tasks:
@@ -19,7 +18,7 @@
         path: /opt/flaskapp
         state: directory
 
-    - name: Copy Flask app from local repo
+    - name: Copy app.py to server
       copy:
         src: app.py
         dest: /opt/flaskapp/app.py
@@ -42,13 +41,13 @@
           [Install]
           WantedBy=multi-user.target
 
-    - name: Start and enable Flask service
+    - name: Start Flask app
       systemd:
         name: flaskapp
+        state: started
         enabled: true
-        state: restarted
 
-- name: Setup HAProxy
+- name: Set Up HAProxy Load Balancer
   hosts: HAproxy
   become: true
   tasks:
@@ -57,19 +56,19 @@
         name: haproxy
         update_cache: yes
 
-    - name: Generate HAProxy configuration content
-      set_fact:
-        haproxy_config: |
+    - name: Generate HAProxy config
+      copy:
+        dest: /etc/haproxy/haproxy.cfg
+        content: |
           global
-              log /dev/log    local0
-              log /dev/log    local1 notice
+              log /dev/log local0
+              log /dev/log local1 notice
               daemon
 
           defaults
               log     global
               mode    http
               option  httplog
-              option  dontlognull
               timeout connect 5000
               timeout client  50000
               timeout server  50000
@@ -81,14 +80,9 @@
           backend http_back
               balance roundrobin
               option httpchk GET /
-              {% for server in groups['webservers'] %}
-              server {{ server }} {{ hostvars[server]['ansible_default_ipv4']['address'] }}:5000 check
-              {% endfor %}
-
-    - name: Render HAProxy config using template lookup
-      copy:
-        dest: /etc/haproxy/haproxy.cfg
-        content: "{{ lookup('template', haproxy_config) }}"
+              server devA 10.0.1.11:5000 check
+              server devB 10.0.1.12:5000 check
+              server devC 10.0.1.13:5000 check
 
     - name: Restart HAProxy
       systemd:
