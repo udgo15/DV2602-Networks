@@ -1,0 +1,107 @@
+---
+- name: Deploy Flask App to Webservers
+  hosts: webservers
+  become: true
+  tasks:
+    - name: Install dependencies
+      apt:
+        name:
+          - python3
+          - python3-pip
+        update_cache: yes
+
+    - name: Install Flask
+      pip:
+        name: flask
+
+    - name: Create app directory
+      file:
+        path: /opt/flaskapp
+        state: directory
+
+    - name: Download application2.py
+      get_url:
+        url: https://raw.githubusercontent.com/patrikarlos/NSO_A2/main/application2.py
+        src: app.py
+        dest: /opt/flaskapp/app.py
+
+    - name: Create systemd service
+      copy:
+        dest: /etc/systemd/system/flaskapp.service
+        content: |
+          [Unit]
+          Description=Flask App
+          After=network.target
+
+          [Service]
+          ExecStart=/usr/bin/python3 /opt/flaskapp/app.py
+          WorkingDirectory=/opt/flaskapp
+          Restart=always
+          User=ubuntu
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Start and enable Flask service
+      systemd:
+        name: flaskapp
+        enabled: true
+        state: restarted
+
+- name: Setup HAProxy
+  hosts: HAproxy
+  become: true
+  tasks:
+    - name: Install HAProxy
+      apt:
+        name: haproxy
+        update_cache: yes
+
+    - name: Configure HAProxy
+      copy:
+        dest: /etc/haproxy/haproxy.cfg
+        content: |
+          global
+              log /dev/log    local0
+              log /dev/log    local1 notice
+              daemon
+
+          defaults
+              log     global
+              mode    http
+              option  httplog
+              option  dontlognull
+              timeout connect 5000
+              timeout client  50000
+              timeout server  50000
+
+          frontend http_front
+              bind *:80
+              default_backend http_back
+
+          backend http_back
+            balance roundrobin
+          {% for server in groups['webservers'] %}
+          server {{ server }} {{ hostvars[server]['ansible_default_ipv4']['address'] }}:80 check
+          {% endfor %}
+
+    - name: Restart HAProxy
+      systemd:
+        name: haproxy
+        state: restarted
+        enabled: true
+
+- name: Validate Load Balancing
+  hosts: localhost
+  connection: local
+  vars:
+    haproxy_ip: "{{ lookup('env', 'HAPROXY_IP') }}"
+  tasks:
+    - name: Send requests to HAproxy and verify responses
+      uri:
+        url: "http://{{ haproxy_ip }}"
+        return_content: yes
+      register: result
+      until: "'devA' in result.content or 'devB' in result.content or 'devC' in result.content"
+      retries: 5
+      delay: 5
