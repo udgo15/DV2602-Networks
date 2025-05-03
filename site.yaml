@@ -41,6 +41,10 @@
           [Install]
           WantedBy=multi-user.target
 
+    - name: Reload systemd to register flaskapp service
+      systemd:
+        daemon_reload: true
+
     - name: Start Flask app
       systemd:
         name: flaskapp
@@ -80,7 +84,7 @@
           backend http_back
               balance roundrobin
               {% for server in groups['webservers'] %}
-              server {{ server }} {{ hostvars[server]['ansible_default_ipv4']['address'] }}:5000 check
+              server {{ server }} {{ hostvars[server]['ansible_default_ipv4']['address'] }}:80 check
               {% endfor %}
 
     - name: Restart HAProxy
