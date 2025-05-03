@@ -79,10 +79,9 @@
 
           backend http_back
               balance roundrobin
-              option httpchk GET /
-              server devA 10.0.1.11:5000 check
-              server devB 10.0.1.12:5000 check
-              server devC 10.0.1.13:5000 check
+              {% for server in groups['webservers'] %}
+              server {{ server }} {{ hostvars[server]['ansible_default_ipv4']['address'] }}:80 check
+              {% endfor %}
 
     - name: Restart HAProxy
       systemd:
