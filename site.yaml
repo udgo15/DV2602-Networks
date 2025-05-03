@@ -1,5 +1,4 @@
 ---
----
 - name: Deploy Flask App to Webservers
   hosts: webservers
   become: true
