@@ -80,7 +80,7 @@
           backend http_back
               balance roundrobin
               {% for server in groups['webservers'] %}
-              server {{ server }} {{ hostvars[server]['ansible_default_ipv4']['address'] }}:80 check
+              server {{ server }} {{ hostvars[server]['ansible_default_ipv4']['address'] }}:5000 check
               {% endfor %}
 
     - name: Restart HAProxy
