@@ -10,9 +10,9 @@ events {
 stream {
     upstream snmp_nodes {
         least_conn;
-        server {{ hostvars['devA']['ansible_default_ipv4']['address'] }}:161;
-        server {{ hostvars['devB']['ansible_default_ipv4']['address'] }}:161;
-        server {{ hostvars['devC']['ansible_default_ipv4']['address'] }}:161;
+        {% for server in groups['webservers'] %}
+        server {{ server }} {{ hostvars[server]['ansible_default_ipv4']['address'] }}:161 check
+        {% endfor %}
     }
 
     server {

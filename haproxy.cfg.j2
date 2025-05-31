@@ -26,11 +26,10 @@ defaults
 
 frontend http_front
     bind *:80
-    stats uri /haproxy?stats
     default_backend http_back
 
 backend http_back
     balance roundrobin
-    server devA {{ hostvars['devA']['ansible_default_ipv4']['address'] }}:5000 check
-    server devB {{ hostvars['devB']['ansible_default_ipv4']['address'] }}:5000 check
-    server devC {{ hostvars['devC']['ansible_default_ipv4']['address'] }}:5000 check
+    {% for server in groups['webservers'] %}
+    server {{ server }} {{ hostvars[server]['ansible_default_ipv4']['address'] }}:80 check
+    {% endfor %}
