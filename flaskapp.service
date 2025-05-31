@@ -1,0 +1,12 @@
+[Unit]
+Description=Application
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/opt/flaskapp
+ExecStart=/usr/bin/python3 /opt/flaskapp/application2.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

@@ -4,14 +4,15 @@ pid /run/nginx.pid;
 include /etc/nginx/modules-enabled/*.conf;
 
 events {
-    worker_connections 1024;
+    worker_connections 768;
+    # multi_accept on;
 }
 
 stream {
     upstream snmp_nodes {
         least_conn;
         {% for server in groups['webservers'] %}
-        server {{ server }} {{ hostvars[server]['ansible_default_ipv4']['address'] }}:161 check
+        server {{ hostvars[server]['ansible_default_ipv4']['address'] }}:161;
         {% endfor %}
     }
 
