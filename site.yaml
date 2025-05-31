@@ -55,6 +55,12 @@
         regexp: '^agentaddress\\s+.*'
         line: 'agentaddress udp:161'
       notify: Restart SNMPd
+    
+    - name: Add read-only SNMP community
+      lineinfile:
+        path: /etc/snmp/snmpd.conf
+        line: 'rocommunity public'
+        insertafter: EOF
 
     - name: Install Flask
       pip:
