@@ -1,0 +1,43 @@
+user www-data;
+worker_processes auto;
+pid /run/nginx.pid;
+include /etc/nginx/modules-enabled/*.conf;
+
+events {
+    worker_connections 1024;
+}
+
+stream {
+    upstream snmp_nodes {
+        least_conn;
+        server {{ hostvars['devA']['ansible_default_ipv4']['address'] }}:161;
+        server {{ hostvars['devB']['ansible_default_ipv4']['address'] }}:161;
+        server {{ hostvars['devC']['ansible_default_ipv4']['address'] }}:161;
+    }
+
+    server {
+        listen 1611 udp;
+        proxy_pass snmp_nodes;
+        proxy_timeout 2s;
+        proxy_responses 1;
+    }
+}
+
+http {
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    keepalive_timeout 65;
+    types_hash_max_size 2048;
+
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
+
+    gzip on;
+
+    include /etc/nginx/conf.d/*.conf;
+    include /etc/nginx/sites-enabled/*;
+}
