@@ -1,4 +1,4 @@
-- name: Create an application with load balencer
+- name: Create a application with load balencer
   hosts: all
   become: true
   gather_facts: true
@@ -16,7 +16,7 @@
   tasks:
     - name: Install python packages
       apt:
-        name: ['python3', 'python3-pip', 'python3-flask','snmpd']
+        name: ['python3', 'python3-pip', 'python3-flask']
         state: present
 
     - name: Create application directory 
@@ -31,6 +31,11 @@
         dest: /opt/flaskapp/application2.py
         mode: '0644'
 
+    - name: Install application
+      pip:
+        name: flask
+        executable: pip3
+
     - name: Create application service
       copy:
         src: flaskapp.service
@@ -44,83 +49,30 @@
         state: started
         daemon_reload: yes
 
-    - name: Configure SNMPd to listen on UDP 161
-      lineinfile:
-        path: /etc/snmp/snmpd.conf
-        regexp: '^agentAddress\s+.*'
-        line: 'agentAddress udp:161'
-      notify: Restart SNMPd
-
-    - name: Ensure snmpd is started and enabled
-      systemd:
-        name: snmpd
-        state: started
-        enabled: yes
-
-  handlers:
-    - name: Restart SNMPd
-      systemd:
-        name: snmpd
-        state: restarted
-
-# ------------------------------------------------------
-- name: Configure HAProxy on proxy host
+- name: Configure haproxy loadbalencer
   hosts: HAproxy
   become: true
-  tasks:
-    - name: Install HAProxy and NGINX
-      apt: 
-        name: 
-          - haproxy
-          - nginx
-        state: present
-        update_cache: yes
 
-    - name: Configure HAProxy config
+  tasks:
+    - name: Install haproxy loadbalencer
+      apt:
+        name: haproxy
+        state: present
+
+    - name: Configuring haproxy loadbalencer
       template:
         src: haproxy.cfg.j2
         dest: /etc/haproxy/haproxy.cfg
         mode: '0644'
-      notify: Restart HAProxy
+      notify: Restart haproxy server
 
-    - name: Check HAProxy configuration syntax
-      command: haproxy -c -f /etc/haproxy/haproxy.cfg
-      register: haproxy_check
-      ignore_errors: yes
-
-    - name: Fail if HAProxy config syntax check failed
-      fail:
-        msg: "HAProxy config syntax error:\n{{ haproxy_check.stderr }}"
-      when: haproxy_check.rc != 0
-
-    - name: Enable & start HAProxy
-      systemd:
+    - name: Enable haproxy service to start on boot
+      service:
         name: haproxy
         enabled: yes
-        state: started
-        daemon_reload: yes
-    - name: Configure NGINX UDP
-      template:
-        src: nginx.conf.j2
-        dest: /etc/nginx/nginx.conf
-        mode: '0644'
-        force: yes
-      notify: Reload NGINX
-
-    - name: Ensure NGINX is running
-      systemd:
-        name: nginx
-        state: started
-        enabled: yes
-        daemon_reload: yes
 
   handlers:
-    - name: Restart HAProxy
-      systemd:
+    - name: Restart haproxy server
+      service:
         name: haproxy
         state: restarted
-
-    - name: Reload NGINX
-      systemd:
-        name: nginx
-        state: reloaded
