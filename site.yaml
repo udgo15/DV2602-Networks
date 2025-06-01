@@ -108,6 +108,12 @@
         path: /etc/nginx/sites-available/default
         state: absent
 
+    - name: Prevent NGINX from listening on TCP port 80
+      lineinfile:
+        path: /etc/nginx/nginx.conf
+        regexp: '^\s*listen\s+80.*'
+        state: absent
+
     - name: Ensure NGINX is running
       systemd:
         name: nginx

@@ -18,7 +18,7 @@ defaults
     timeout server  50s
 
 frontend http_front
-    bind *:5000
+    bind *:80
     stats uri /haproxy?stats
     default_backend bk_service
 
