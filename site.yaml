@@ -88,14 +88,7 @@
         src: haproxy.cfg.j2
         dest: /etc/haproxy/haproxy.cfg
         mode: '0644'
-      notify: Reload and Restart HAproxy
-
-    - name: Enable and start HAproxy service
-      systemd:
-        name: haproxy
-        state: started
-        enabled: yes
-        daemon_reload: yes
+      notify: Validate and Restart HAproxy
 
     - name: Configure NGINX for SNMP UDP proxy
       template:
@@ -123,17 +116,29 @@
         daemon_reload: yes
 
   handlers:
-    - name: Reload and Restart HAproxy
+    - name: Validate and Restart HAproxy
       block:
-        - name: Reload systemd daemon for HAproxy
+        - name: Validate HAproxy configuration
+          command: haproxy -c -f /etc/haproxy/haproxy.cfg
+          register: haproxy_check
+          changed_when: false
+          failed_when: haproxy_check.rc != 0
+
+        - name: Stop HAproxy service before restart
           systemd:
-            daemon_reload: yes
+            name: haproxy
+            state: stopped
 
         - name: Restart HAproxy service
           systemd:
             name: haproxy
-            state: restarted
+            state: started
             enabled: yes
+            daemon_reload: yes
+
+        - name: Show HAproxy config validation output
+          debug:
+            var: haproxy_check.stdout_lines
 
     - name: Reload NGINX
       systemd:
