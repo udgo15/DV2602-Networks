@@ -1,4 +1,5 @@
-- name: Create a application with load balencer
+---
+- name: Create application with load balancer
   hosts: all
   become: true
 
@@ -13,13 +14,17 @@
   become: true
 
   tasks:
-    - name: Install python packages
+    - name: Install python packages and snmpd
       apt:
-        name: ['python3', 'python3-pip', 'python3-flask', 'snmpd']
+        name:
+          - python3
+          - python3-pip
+          - python3-flask
+          - snmpd
         state: present
         update_cache: yes
 
-    - name: Create application directory 
+    - name: Create application directory
       file:
         path: /opt/flaskapp
         state: directory
@@ -44,11 +49,11 @@
         state: restarted
         enabled: yes
 
-    - name: Configure SNMPd to listen on UDP 6000 on all interfaces
+    - name: Configure SNMPd to listen on UDP 161 on all interfaces
       lineinfile:
         path: /etc/snmp/snmpd.conf
         regexp: '^agentaddress\s+.*'
-        line: 'agentaddress udp:6000'
+        line: 'agentaddress udp:161'
       notify: Restart SNMPd
 
     - name: Ensure snmpd is started and enabled
@@ -63,38 +68,45 @@
         name: snmpd
         state: restarted
 
-- name: Configure haproxy loadbalencer
+- name: Configure HAproxy and NGINX for load balancing
   hosts: HAproxy
   become: true
 
   tasks:
-    - name: Install haproxy loadbalencer
+    - name: Install HAproxy and NGINX
       apt:
-        name: ['haproxy', 'nginx']
+        name:
+          - haproxy
+          - nginx
         state: present
         update_cache: yes
 
-    - name: Configuring haproxy loadbalencer
+    - name: Configure HAproxy for Flask app
       template:
         src: haproxy.cfg.j2
         dest: /etc/haproxy/haproxy.cfg
         mode: '0644'
-      notify: Restart haproxy server
+      notify: Restart HAproxy
 
-    - name: Enable haproxy service to start on boot
-      service:
+    - name: Enable and start HAproxy service
+      systemd:
         name: haproxy
-        state: restarted
+        state: started
         enabled: yes
         daemon_reload: yes
 
-    - name: Configure NGINX UDP
+    - name: Configure NGINX for SNMP UDP proxy
       template:
         src: nginx.conf.j2
         dest: /etc/nginx/nginx.conf
         mode: '0644'
         force: yes
       notify: Reload NGINX
+
+    - name: Ensure default HTTP site is removed
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
 
     - name: Ensure NGINX is running
       systemd:
@@ -104,8 +116,8 @@
         daemon_reload: yes
 
   handlers:
-    - name: Restart haproxy server
-      service:
+    - name: Restart HAproxy
+      systemd:
         name: haproxy
         state: restarted
 
