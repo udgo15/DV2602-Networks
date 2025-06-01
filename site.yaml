@@ -16,7 +16,7 @@
   tasks:
     - name: Install python packages
       apt:
-        name: ['python3', 'python3-pip', 'python3-flask']
+        name: ['python3', 'python3-pip', 'python3-flask','snmpd']
         state: present
 
     - name: Create application directory 
@@ -31,11 +31,6 @@
         dest: /opt/flaskapp/application2.py
         mode: '0644'
 
-    - name: Install application
-      pip:
-        name: flask
-        executable: pip3
-
     - name: Create application service
       copy:
         src: flaskapp.service
@@ -49,6 +44,11 @@
         state: started
         daemon_reload: yes
 
+    - name: Ensure SNMPd config exists
+      file:
+        path: /etc/snmp/snmpd.conf
+        state: touch
+        mode: '0644'
     - name: Configure SNMPd to listen on UDP 161
       lineinfile:
         path: /etc/snmp/snmpd.conf
@@ -71,7 +71,7 @@
 # ------------------------------------------------------
 - name: Configure HAProxy on proxy host
   hosts: HAproxy
-  become: yes
+  become: true
   tasks:
     - name: Install HAProxy and NGINX
       apt: 
@@ -103,7 +103,7 @@
         name: haproxy
         enabled: yes
         state: started
-
+        daemon_reload: yes
     - name: Configure NGINX UDP
       template:
         src: nginx.conf.j2
