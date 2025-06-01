@@ -44,11 +44,6 @@
         state: started
         daemon_reload: yes
 
-    - name: Ensure SNMPd config exists
-      file:
-        path: /etc/snmp/snmpd.conf
-        state: touch
-        mode: '0644'
     - name: Configure SNMPd to listen on UDP 161
       lineinfile:
         path: /etc/snmp/snmpd.conf
@@ -124,7 +119,6 @@
       systemd:
         name: haproxy
         state: restarted
-        daemon_reload: yes
 
     - name: Reload NGINX
       systemd:
