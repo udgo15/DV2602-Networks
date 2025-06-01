@@ -27,7 +27,7 @@
 
     - name: Create application
       copy:
-        src: dependencies/application2.py
+        src: application2.py
         dest: /opt/flaskapp/application2.py
         mode: '0644'
 
@@ -38,7 +38,7 @@
 
     - name: Create application service
       copy:
-        src: dependencies/flaskapp.service
+        src: flaskapp.service
         dest: /etc/systemd/system/flaskapp.service
         mode: '0644'
 
