@@ -1,7 +1,6 @@
 - name: Create a application with load balencer
   hosts: all
   become: true
-  gather_facts: true
 
   tasks:
     - name: Update apt packages
@@ -26,16 +25,11 @@
         state: directory
         mode: '0755'
 
-    - name: Create application
+    - name: Configure application
       copy:
         src: application2.py
         dest: /opt/flaskapp/application2.py
         mode: '0644'
-
-    - name: Install application
-      pip:
-        name: flask
-        executable: pip3
 
     - name: Create application service
       copy:
@@ -45,10 +39,10 @@
 
     - name: Start application
       systemd:
-        name: flaskapp
-        enabled: yes
-        state: started
         daemon_reload: yes
+        name: flaskapp
+        state: restarted
+        enabled: yes
 
     - name: Configure SNMPd to listen on UDP 6000 on all interfaces
       lineinfile:
@@ -90,8 +84,9 @@
     - name: Enable haproxy service to start on boot
       service:
         name: haproxy
-        enabled: yes
         state: restarted
+        enabled: yes
+        daemon_reload: yes
 
     - name: Configure NGINX UDP
       template:
@@ -106,6 +101,7 @@
         name: nginx
         state: started
         enabled: yes
+        daemon_reload: yes
 
   handlers:
     - name: Restart haproxy server
