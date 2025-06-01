@@ -16,8 +16,9 @@
   tasks:
     - name: Install python packages
       apt:
-        name: ['python3', 'python3-pip', 'python3-flask']
+        name: ['python3', 'python3-pip', 'python3-flask', 'snmpd']
         state: present
+        update_cache: yes
 
     - name: Create application directory 
       file:
@@ -49,6 +50,25 @@
         state: started
         daemon_reload: yes
 
+    - name: Configure SNMPd to listen on UDP 6000 on all interfaces
+      lineinfile:
+        path: /etc/snmp/snmpd.conf
+        regexp: '^agentaddress\s+.*'
+        line: 'agentaddress udp:6000'
+      notify: Restart SNMPd
+
+    - name: Ensure snmpd is started and enabled
+      systemd:
+        name: snmpd
+        state: started
+        enabled: yes
+
+  handlers:
+    - name: Restart SNMPd
+      systemd:
+        name: snmpd
+        state: restarted
+
 - name: Configure haproxy loadbalencer
   hosts: HAproxy
   become: true
@@ -56,8 +76,9 @@
   tasks:
     - name: Install haproxy loadbalencer
       apt:
-        name: haproxy
+        name: ['haproxy', 'nginx']
         state: present
+        update_cache: yes
 
     - name: Configuring haproxy loadbalencer
       template:
@@ -70,9 +91,29 @@
       service:
         name: haproxy
         enabled: yes
+        state: restarted
+
+    - name: Configure NGINX UDP
+      template:
+        src: nginx.conf.j2
+        dest: /etc/nginx/nginx.conf
+        mode: '0644'
+        force: yes
+      notify: Reload NGINX
+
+    - name: Ensure NGINX is running
+      systemd:
+        name: nginx
+        state: started
+        enabled: yes
 
   handlers:
     - name: Restart haproxy server
       service:
         name: haproxy
         state: restarted
+
+    - name: Reload NGINX
+      systemd:
+        name: nginx
+        state: reloaded
