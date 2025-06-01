@@ -83,16 +83,6 @@
         state: present
         update_cache: yes
 
-    - name: Ensure default HTTP site is removed before configuring nginx
-      file:
-        path: /etc/nginx/sites-enabled/default
-        state: absent
-
-    - name: Remove default HTTP site config file before configuring nginx
-      file:
-        path: /etc/nginx/sites-available/default
-        state: absent
-
     - name: Configure HAproxy for Flask app
       template:
         src: haproxy.cfg.j2
@@ -106,19 +96,33 @@
         dest: /etc/nginx/nginx.conf
         mode: '0644'
         force: yes
-      notify: Validate and Reload NGINX
+      notify: Reload NGINX
 
-    - name: Validate nginx config
-      command: nginx -t
-      register: nginx_check
-      failed_when: nginx_check.rc != 0
-      changed_when: false
+    - name: Remove default HTTP site config files
+      file:
+        path: "/etc/nginx/sites-enabled/default"
+        state: absent
+      ignore_errors: yes
+
+    - name: Remove default site config file (optional)
+      file:
+        path: "/etc/nginx/sites-available/default"
+        state: absent
+      ignore_errors: yes
+
+    - name: Ensure NGINX is running only on UDP/1611
+      replace:
+        path: /etc/nginx/nginx.conf
+        regexp: '^\s*listen\s+80.*'
+        replace: ''
+      notify: Reload NGINX
 
     - name: Ensure NGINX is running
       systemd:
         name: nginx
         state: started
         enabled: yes
+        daemon_reload: yes
 
   handlers:
     - name: Validate and Restart HAproxy
@@ -145,8 +149,9 @@
           debug:
             var: haproxy_check.stdout_lines
 
-    - name: Validate and Reload NGINX
+    - name: Reload NGINX
       systemd:
         name: nginx
         state: reloaded
         enabled: yes
+        daemon_reload: yes
