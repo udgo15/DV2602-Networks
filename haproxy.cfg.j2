@@ -30,6 +30,6 @@ frontend http_front
 
 backend http_back
     balance roundrobin
-    {% for server in groups['webservers'] %}
-    server {{ server }} {{ hostvars[server]['ansible_default_ipv4']['address'] }}:80 check
+    {% for host in groups['dev_nodes'] %}
+    server {{ host }} {{ hostvars[host]['ansible_default_ipv4']['address'] }}:80 check
     {% endfor %}

@@ -67,6 +67,8 @@
       systemd:
         name: snmpd
         state: restarted
+        enabled: yes
+        daemon_reload: yes
 
 - name: Configure HAproxy and NGINX for load balancing
   hosts: HAproxy
@@ -86,7 +88,7 @@
         src: haproxy.cfg.j2
         dest: /etc/haproxy/haproxy.cfg
         mode: '0644'
-      notify: Restart HAproxy
+      notify: Reload and Restart HAproxy
 
     - name: Enable and start HAproxy service
       systemd:
@@ -108,6 +110,11 @@
         path: /etc/nginx/sites-enabled/default
         state: absent
 
+    - name: Remove default HTTP site config file
+      file:
+        path: /etc/nginx/sites-available/default
+        state: absent
+
     - name: Ensure NGINX is running
       systemd:
         name: nginx
@@ -116,12 +123,21 @@
         daemon_reload: yes
 
   handlers:
-    - name: Restart HAproxy
-      systemd:
-        name: haproxy
-        state: restarted
+    - name: Reload and Restart HAproxy
+      block:
+        - name: Reload systemd daemon for HAproxy
+          systemd:
+            daemon_reload: yes
+
+        - name: Restart HAproxy service
+          systemd:
+            name: haproxy
+            state: restarted
+            enabled: yes
 
     - name: Reload NGINX
       systemd:
         name: nginx
         state: reloaded
+        enabled: yes
+        daemon_reload: yes

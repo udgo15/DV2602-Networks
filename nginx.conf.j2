@@ -9,8 +9,8 @@ events {
 
 stream {
     upstream snmp_nodes {
-        {% for server in groups['webservers'] %}
-        server {{ hostvars[server]['ansible_default_ipv4']['address'] }}:161;
+        {% for host in groups['webservers'] %}
+        server {{ hostvars[host]['ansible_default_ipv4']['address'] }}:161;
         {% endfor %}
     }
 
@@ -19,5 +19,7 @@ stream {
         proxy_pass snmp_nodes;
         proxy_timeout 2s;
         proxy_responses 1;
+        error_log /var/log/nginx/snmp_error.log;
+        access_log /var/log/nginx/snmp_access.log;
     }
 }
